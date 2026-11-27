@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parry — práctica de oído</title>
+<style>
+:root{
+  --fondo:#100f0d; --panel:#1a1815; --linea:#2e2a24; --crema:#ece3cf; --tenue:#9b9283;
+  --ambar:#d9a441; --sangre:#c8452f; --parry:#6cc3b3;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--fondo);color:var(--crema);
+  font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;user-select:none}
+.titulo{font-family:Georgia,"Times New Roman",serif;letter-spacing:.18em;text-transform:uppercase}
+button{font:inherit;color:inherit;cursor:pointer}
+.pantalla{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:24px}
+.pantalla.activa{display:flex}
+.caja{width:min(760px,100%);}
+#inicio h1{font-size:clamp(44px,9vw,96px);margin:0;line-height:1;color:var(--crema)}
+#inicio h1 span{color:var(--parry)}
+.bajada{font-size:clamp(17px,2.2vw,21px);color:var(--crema);margin:18px 0 6px;max-width:34em}
+.nota{color:var(--tenue);font-size:14px;margin:0 0 28px;max-width:44em}
+.modos{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
+.modo{background:var(--panel);border:1px solid var(--linea);border-radius:10px;padding:16px;text-align:left;transition:border-color .15s,transform .15s}
+.modo:hover{border-color:#5a5246}
+.modo.sel{border-color:var(--ambar);box-shadow:0 0 0 1px var(--ambar) inset}
+.modo b{display:block;font-family:Georgia,serif;letter-spacing:.08em;text-transform:uppercase;font-size:15px;margin-bottom:4px}
+.modo small{color:var(--tenue);font-size:13px;line-height:1.35;display:block}
+.modo .record{margin-top:10px;color:var(--ambar);font-size:13px}
+.fila{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.boton{background:var(--ambar);color:#1b1408;border:0;border-radius:8px;padding:14px 28px;font-weight:700;font-size:17px;letter-spacing:.04em}
+.boton:hover{filter:brightness(1.08)}
+.sec{background:transparent;border:1px solid var(--linea);border-radius:8px;padding:12px 18px;color:var(--crema)}
+.sec:hover{border-color:#5a5246}
+details{margin-top:22px;border-top:1px solid var(--linea);padding-top:14px}
+summary{cursor:pointer;color:var(--tenue);font-size:14px}
+.ajustes{display:grid;grid-template-columns:1fr 1fr;gap:14px 28px;margin-top:14px;font-size:14px}
+.ajustes label{display:flex;flex-direction:column;gap:6px;color:var(--tenue)}
+.ajustes label.chk{flex-direction:row;align-items:center;gap:10px}
+.ajustes output{color:var(--crema)}
+input[type=range]{accent-color:var(--ambar);width:100%}
+input[type=checkbox]{accent-color:var(--ambar);width:18px;height:18px}
+.tecla{display:inline-block;min-width:44px;padding:6px 12px;border:1px solid #5a5246;border-bottom-width:3px;border-radius:7px;background:#24211c;text-align:center;font-weight:700;color:var(--crema)}
+.tecla.esperando{border-color:var(--ambar);color:var(--ambar)}
+
+#juego{flex-direction:column}
+#hud{position:fixed;top:22px;left:0;right:0;display:flex;justify-content:space-between;padding:0 28px;color:var(--tenue);font-size:14px}
+#hud b{color:var(--crema);font-weight:600}
+#racha{font-family:Georgia,serif;font-size:clamp(90px,18vw,200px);line-height:1;color:var(--crema);transition:color .2s}
+#rachaLbl{color:var(--tenue);letter-spacing:.3em;text-transform:uppercase;font-size:12px;margin-top:-4px}
+#centro{position:relative;width:min(360px,70vw);aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+#radar{position:absolute;inset:0;border-radius:50%;border:1px solid var(--linea)}
+#radar::after{content:"";position:absolute;inset:22%;border-radius:50%;border:1px dashed #26231e}
+.marca{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:var(--sangre);box-shadow:0 0 18px var(--sangre);opacity:0;transition:opacity .12s}
+#ultimo{min-height:54px;margin-top:26px;text-align:center;color:var(--tenue);font-size:15px}
+#ultimo .bien{color:var(--parry);font-weight:600}
+#linea{width:min(420px,80vw);height:22px;margin:8px auto 0;position:relative;display:none}
+#linea .eje{position:absolute;left:0;right:0;top:10px;height:2px;background:var(--linea)}
+#linea .ventana{position:absolute;top:6px;height:10px;background:rgba(108,195,179,.25);border:1px solid rgba(108,195,179,.5);border-radius:3px}
+#linea .pto{position:absolute;top:3px;width:2px;height:16px;margin-left:-1px}
+#linea .cue{background:var(--ambar)} #linea .golpe{background:var(--sangre)} #linea .tu{background:var(--parry);width:10px;height:10px;border-radius:50%;margin-left:-5px;top:6px}
+#anillo{position:fixed;bottom:34px;left:50%;transform:translateX(-50%);width:92px;height:92px}
+#anillo svg{width:100%;height:100%;transform:rotate(-90deg)}
+#anillo .letra{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:26px}
+#anillo .sub{position:absolute;left:50%;transform:translateX(-50%);bottom:-22px;font-size:12px;color:var(--tenue);white-space:nowrap}
+#destello{position:fixed;inset:0;pointer-events:none;opacity:0}
+#salir{position:fixed;bottom:30px;right:28px;font-size:13px;color:var(--tenue)}
+
+#fin h2{font-size:clamp(36px,7vw,64px);margin:0;line-height:1.05;color:var(--sangre)}
+#fin .porque{font-size:clamp(18px,2.4vw,22px);margin:16px 0 4px}
+#fin .consejo{color:var(--tenue);margin:0 0 22px;max-width:40em}
+.stats{display:flex;gap:28px;margin:0 0 26px;flex-wrap:wrap}
+.stats div{display:flex;flex-direction:column}
+.stats b{font-family:Georgia,serif;font-size:40px;line-height:1.1}
+.stats span{color:var(--tenue);font-size:13px}
+#cargando{color:var(--tenue)}
+@media (max-width:640px){.modos{grid-template-columns:1fr}.ajustes{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div id="carga" class="pantalla activa"><p id="cargando">Cargando los sonidos del juego…</p></div>
+
+<div id="inicio" class="pantalla">
+  <div class="caja">
+    <h1 class="titulo">Par<span>ry</span></h1>
+    <p class="bajada">En medio de la pelea va a sonar un golpe cargado. Cuando lo oigas, presiona <span class="tecla" data-tecla>F</span> antes de que te pegue. Si te pega, pierdes.</p>
+    <p class="nota">Todos los sonidos salen de los archivos de Deadlock. Con audífonos se oye de qué lado viene cada golpe. El parry dura 0,75 s y si lo gastas en el aire queda 4,5 s en enfriamiento, igual que en el juego: no lo spamees.</p>
+
+    <div class="modos" id="modos">
+      <button class="modo" data-modo="tranqui"><b>Tranqui</b><small>Poca bulla. El golpe se oye claro y casi siempre viene de frente.</small><div class="record"></div></button>
+      <button class="modo" data-modo="pelea"><b>Pelea</b><small>Tiros y habilidades por todos lados. El golpe puede venir de cualquier lado.</small><div class="record"></div></button>
+      <button class="modo" data-modo="tf"><b>TF 6v6</b><small>Caos total y fintas: a veces cargan y cancelan. Si muerdes, el siguiente te mata.</small><div class="record"></div></button>
+    </div>
+
+    <div class="fila">
+      <button class="boton" id="jugar">Jugar</button>
+      <button class="sec" id="oirAviso">Escuchar el golpe cargado</button>
+      <button class="sec" id="oirParry">Escuchar un parry bien hecho</button>
+    </div>
+
+    <details>
+      <summary>Ajustes</summary>
+      <div class="ajustes">
+        <label>Tecla de parry
+          <span><button class="tecla" id="rebind" data-tecla>F</button> <small style="color:var(--tenue)">clic y presiona otra tecla o botón del mouse</small></span>
+        </label>
+        <label>Tiempo de carga del golpe <output id="vCarga"></output>
+          <input type="range" id="carga" min="0.4" max="0.9" step="0.01">
+        </label>
+        <label>Volumen general <output id="vVol"></output>
+          <input type="range" id="vol" min="0" max="1.5" step="0.05">
+        </label>
+        <label>Volumen de la pelea (el caos) <output id="vCaos"></output>
+          <input type="range" id="caos" min="0" max="2" step="0.05">
+        </label>
+        <label class="chk"><input type="checkbox" id="ayuda"> Ayuda visual: mostrar de dónde viene el golpe</label>
+        <label class="chk"><input type="checkbox" id="fintas"> Fintas también fuera del modo TF</label>
+      </div>
+    </details>
+  </div>
+</div>
+
+<div id="juego" class="pantalla">
+  <div id="hud"><span id="hudModo"></span><span>Récord <b id="hudRecord">0</b></span></div>
+  <div id="centro">
+    <div id="radar"><div class="marca" id="marca"></div></div>
+    <div id="racha">0</div>
+    <div id="rachaLbl">parries seguidos</div>
+  </div>
+  <div id="ultimo">Escucha la pelea…</div>
+  <div id="linea"><div class="eje"></div></div>
+  <div id="leyenda" style="display:none;font-size:12px;color:var(--tenue);margin-top:6px"><span style="color:var(--ambar)">|</span> aviso &nbsp; <span style="color:var(--parry)">&#9644;</span> tu parry activo &nbsp; <span style="color:var(--sangre)">|</span> golpe</div>
+  <div id="anillo">
+    <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" stroke="#2e2a24" stroke-width="7"/><circle id="arco" cx="50" cy="50" r="44" fill="none" stroke="#6cc3b3" stroke-width="7" stroke-linecap="round" stroke-dasharray="276.5" stroke-dashoffset="0"/></svg>
+    <div class="letra" data-tecla>F</div>
+    <div class="sub" id="anilloSub">listo</div>
+  </div>
+  <button class="sec" id="salir">Esc para salir</button>
+</div>
+
+<div id="fin" class="pantalla">
+  <div class="caja">
+    <h2 class="titulo">Te pegaron</h2>
+    <p class="porque" id="porque"></p>
+    <p class="consejo" id="consejo"></p>
+    <div class="stats">
+      <div><b id="sRacha">0</b><span>parries seguidos</span></div>
+      <div><b id="sRecord">0</b><span>tu récord en este modo</span></div>
+      <div><b id="sReac">—</b><span>reacción promedio</span></div>
+    </div>
+    <div class="fila">
+      <button class="boton" id="otra">Otra vez <small style="font-weight:400;opacity:.7">(espacio)</small></button>
+      <button class="sec" id="menu">Cambiar modo</button>
+    </div>
+  </div>
+</div>
+
+<div id="destello"></div>
+
+<script src="sonidos.js"></script>
+<script>
+const $ = (s) => document.querySelector(s);
+const PARRY_ACTIVO = 0.75, PARRY_CD = 4.5;
+
+const MODOS = {
+  tranqui: { nombre: "Tranqui", caos: 0.45, aviso: 1.15, fintas: 0, entre: [5.2, 9], jitter: 0.02, frente: true, actores: 3 },
+  pelea:   { nombre: "Pelea",   caos: 1.0,  aviso: 0.9,  fintas: 0, entre: [4.8, 8], jitter: 0.05, frente: false, actores: 6 },
+  tf:      { nombre: "TF 6v6",  caos: 1.7,  aviso: 0.72, fintas: 0.28, entre: [4.8, 7], jitter: 0.07, frente: false, actores: 10 },
+};
+
+const ARMAS = [
+  { g: "haze", cad: 0.072, rafaga: [6, 18], gan: 0.42 },
+  { g: "wraith", cad: 0.11, rafaga: [4, 11], gan: 0.45 },
+  { g: "seven", cad: 0.17, rafaga: [3, 8], gan: 0.33 },
+  { g: "infernus", cad: 0.09, rafaga: [5, 14], gan: 0.4 },
+  { g: "abrams", cad: 0.6, rafaga: [1, 3], gan: 0.42 },
+];
+
+const guardado = JSON.parse(localStorage.getItem("parry.ajustes") || "{}");
+const aj = Object.assign({ tecla: "KeyF", teclaTxt: "F", carga: 0.6, vol: 1, caos: 1, ayuda: false, fintas: false, modo: "pelea" }, guardado);
+const records = JSON.parse(localStorage.getItem("parry.records") || "{}");
+const guardar = () => { localStorage.setItem("parry.ajustes", JSON.stringify(aj)); localStorage.setItem("parry.records", JSON.stringify(records)); };
+
+let ctx, master, busCaos, busAviso, B = {};
+const azar = (a, b) => a + Math.random() * (b - a);
+const ent = (a, b) => Math.floor(azar(a, b + 1));
+const uno = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+function b64(s) { const bin = atob(s); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer; }
+
+async function iniciarAudio() {
+  ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive" });
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -14; comp.knee.value = 8; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.2;
+  master = ctx.createGain(); master.gain.value = aj.vol;
+  master.connect(comp).connect(ctx.destination);
+  busCaos = ctx.createGain(); busCaos.connect(master);
+  busAviso = ctx.createGain(); busAviso.connect(master);
+  const tareas = [];
+  for (const [k, lista] of Object.entries(window.SONIDOS)) {
+    B[k] = [];
+    lista.forEach((s, i) => tareas.push(ctx.decodeAudioData(b64(s)).then((buf) => (B[k][i] = buf))));
+  }
+  await Promise.all(tareas);
+}
+
+function sonar(grupo, { t = ctx.currentTime, ang = 0, dist = 1, gan = 1, bus = busCaos, rate = 1 } = {}) {
+  const buf = typeof grupo === "string" ? uno(B[grupo]) : grupo;
+  const src = ctx.createBufferSource(); src.buffer = buf; src.playbackRate.value = rate;
+  const g = ctx.createGain(); g.gain.value = gan / (0.5 + dist * 0.6);
+  const p = ctx.createPanner(); p.panningModel = "HRTF"; p.distanceModel = "linear"; p.rolloffFactor = 0;
+  const x = Math.sin(ang), z = -Math.cos(ang);
+  if (p.positionX) { p.positionX.value = x; p.positionY.value = 0; p.positionZ.value = z; } else p.setPosition(x, 0, z);
+  src.connect(g).connect(p).connect(bus);
+  src.start(Math.max(t, ctx.currentTime));
+  return src;
+}
+
+let J = null;
+
+function nuevoJuego() {
+  const m = MODOS[aj.modo];
+  const ahora = ctx.currentTime;
+  J = {
+    m, racha: 0, reacciones: [], vivo: true,
+    parryIni: -99, parryUsos: [], presiones: [],
+    golpes: [], ultimoReal: ahora,
+    actores: Array.from({ length: m.actores }, () => nuevoActor(ahora + azar(0.2, 2))),
+    sigEvento: ahora + 0.5,
+    sigGolpe: ahora + azar(3.2, 5),
+  };
+  busCaos.gain.cancelScheduledValues(ahora);
+  busCaos.gain.setValueAtTime(m.caos * aj.caos, ahora);
+  busAviso.gain.value = m.aviso;
+  $("#racha").textContent = "0"; $("#racha").style.color = "";
+  $("#hudModo").textContent = m.nombre;
+  $("#hudRecord").textContent = records[aj.modo] || 0;
+  $("#ultimo").innerHTML = "Escucha la pelea…";
+  $("#linea").style.display = "none"; $("#leyenda").style.display = "none";
+  mostrar("juego");
+}
+
+function nuevoActor(t) {
+  return { arma: uno(ARMAS), ang: azar(-Math.PI, Math.PI), dist: azar(0.6, 3), t };
+}
+
+function densidad() { return Math.min(1 + J.racha * 0.06, 1.9); }
+
+function programarCaos() {
+  const ahora = ctx.currentTime, hasta = ahora + 0.25, d = densidad();
+  for (const a of J.actores) {
+    while (a.t < hasta) {
+      const n = ent(...a.arma.rafaga);
+      for (let i = 0; i < n; i++) sonar(a.arma.g, { t: a.t + i * a.arma.cad * azar(0.92, 1.08), ang: a.ang, dist: a.dist, gan: a.arma.gan, rate: azar(0.97, 1.03) });
+      a.t += n * a.arma.cad + azar(0.35, 2.2) / d;
+      if (Math.random() < 0.25) { a.ang += azar(-0.6, 0.6); a.dist = Math.min(3.2, Math.max(0.5, a.dist + azar(-0.5, 0.5))); }
+      if (Math.random() < 0.08) a.arma = uno(ARMAS);
+    }
+  }
+  while (J.sigEvento < hasta) {
+    const t = J.sigEvento, r = Math.random();
+    if (r < 0.28) sonar("zumbido", { t, ang: azar(-Math.PI, Math.PI), dist: 0.4, gan: 0.55 });
+    else if (r < 0.45) sonar("rebote", { t, ang: azar(-Math.PI, Math.PI), dist: azar(0.5, 1.5), gan: 0.5 });
+    else if (r < 0.62) sonar("recibes", { t, ang: 0, dist: 0.3, gan: 0.42 });
+    else if (r < 0.77) sonar("das", { t, ang: 0, dist: 0.3, gan: 0.38 });
+    else if (r < 0.82) sonar("critico", { t, ang: 0, dist: 0.3, gan: 0.4 });
+    else sonar("habilidad", { t, ang: azar(-Math.PI, Math.PI), dist: azar(0.8, 3), gan: 0.75 });
+    J.sigEvento += azar(0.12, 0.7) / d;
+  }
+}
+
+function anguloAtacante() {
+  return J.m.frente ? azar(-0.9, 0.9) : azar(-Math.PI, Math.PI);
+}
+
+function programarGolpes() {
+  const ahora = ctx.currentTime;
+  if (J.sigGolpe > ahora + 0.15) return;
+  const tc = Math.max(J.sigGolpe, ahora + 0.05);
+  const ang = anguloAtacante(), dist = azar(0.5, 0.9);
+  const usaFintas = J.m.fintas || (aj.fintas ? 0.25 : 0);
+  if (usaFintas && J.racha >= 2 && Math.random() < usaFintas) {
+    sonar("aviso", { t: tc, ang, dist, gan: 1, bus: busAviso });
+    const cancela = tc + azar(0.2, 0.3);
+    sonar("parryCast", { t: cancela, ang, dist: dist + 0.6, gan: 0.55, bus: busAviso });
+    J.golpes.push({ tipo: "finta", tc, ang, fin: cancela + 0.4 });
+    J.sigGolpe = Math.max(tc + azar(1.3, 2.3), J.ultimoReal + PARRY_CD + 0.35);
+    mostrarMarca(ang, tc, false);
+    return;
+  }
+  const T = Math.max(0.35, aj.carga + azar(-J.m.jitter, J.m.jitter));
+  const th = tc + T;
+  sonar("aviso", { t: tc, ang, dist, gan: 1, bus: busAviso });
+  const sw = sonar("swing", { t: th - 0.22, ang, dist, gan: 0.9, bus: busAviso });
+  J.golpes.push({ tipo: "real", tc, th, T, ang, dist, sw });
+  J.ultimoReal = tc;
+  const [a, b] = J.m.entre;
+  const sep = azar(a, b) / Math.min(1 + J.racha * 0.03, 1.35);
+  J.sigGolpe = tc + Math.max(PARRY_CD + 0.3, sep);
+  mostrarMarca(ang, tc, true);
+}
+
+function mostrarMarca(ang, tc, real) {
+  if (!aj.ayuda) return;
+  const ms = Math.max(0, (tc - ctx.currentTime) * 1000);
+  setTimeout(() => {
+    const el = $("#marca");
+    el.style.left = 50 + Math.sin(ang) * 46 + "%";
+    el.style.top = 50 - Math.cos(ang) * 46 + "%";
+    el.style.background = real ? "var(--sangre)" : "var(--ambar)";
+    el.style.opacity = 1;
+    setTimeout(() => (el.style.opacity = 0), 650);
+  }, ms);
+}
+
+function latencia() { return (ctx.outputLatency || 0) + (ctx.baseLatency || 0); }
+
+function presionar() {
+  if (!J) return;
+  const t = ctx.currentTime - latencia();
+  J.presiones.push(t);
+  if (!J.vivo) return;
+  if (t - J.parryIni < PARRY_CD) { sacudirAnillo(); return; }
+  J.parryIni = t;
+  const finta = J.golpes.find((g) => g.tipo === "finta" && t >= g.tc - 0.05 && t <= g.fin);
+  J.parryUsos.push({ t, finta: !!finta });
+  sonar("parryCast", { ang: 0, dist: 0.2, gan: 0.55, bus: busAviso });
+}
+
+function resolver() {
+  const ahora = ctx.currentTime - latencia();
+  for (const g of J.golpes) {
+    if (g.tipo !== "real" || g.hecho || ahora < g.th) continue;
+    g.hecho = true;
+    const ok = J.parryIni <= g.th && g.th <= J.parryIni + PARRY_ACTIVO && J.parryIni >= g.tc - 1.2;
+    if (ok) exito(g); else derrota(g);
+    if (!J.vivo) return;
+  }
+  J.golpes = J.golpes.filter((g) => !(g.hecho || (g.tipo === "finta" && ahora > g.fin + 2)));
+}
+
+function exito(g) {
+  sonar("parryExito", { ang: g.ang, dist: 0.4, gan: 0.9, bus: busAviso });
+  J.racha++;
+  const reac = (J.parryIni - g.tc) * 1000;
+  J.reacciones.push(reac);
+  $("#racha").textContent = J.racha;
+  const r = records[aj.modo] || 0;
+  if (J.racha > r) { records[aj.modo] = J.racha; guardar(); $("#hudRecord").textContent = J.racha; }
+  const margen = Math.round((g.th - J.parryIni) * 1000);
+  $("#ultimo").innerHTML = `<span class="bien">Parry.</span> Reaccionaste a ${Math.max(0, Math.round(reac))} ms del aviso · te sobraron ${margen} ms`;
+  dibujarLinea(g, J.parryIni);
+  destello("rgba(108,195,179,.22)");
+  J.sigGolpe = Math.max(J.sigGolpe, g.th + 2.75 * 0.6);
+}
+
+function derrota(g) {
+  J.vivo = false;
+  sonar("impacto", { ang: g.ang, dist: 0.3, gan: 1.1, bus: busAviso });
+  sonar("dolor", { ang: 0, dist: 0.2, gan: 0.9, bus: busAviso });
+  destello("rgba(200,69,47,.45)");
+  $("#racha").style.color = "var(--sangre)";
+  const t0 = ctx.currentTime;
+  busCaos.gain.setValueAtTime(busCaos.gain.value, t0 + 0.4);
+  busCaos.gain.linearRampToValueAtTime(0.0001, t0 + 1.4);
+  setTimeout(() => finDeJuego(g), 900);
+}
+
+function finDeJuego(g) {
+  const tarde = J.presiones.find((p) => p > g.th && p < g.th + 0.6);
+  const uso = J.parryUsos.filter((u) => u.t < g.th).pop();
+  let porque, consejo;
+  if (uso && uso.finta && g.th - uso.t < PARRY_CD) {
+    porque = "Te comiste la finta.";
+    consejo = "Cargó el golpe y lo canceló (ese es el sonido de parry que se oye justo después). Gastaste tu parry y el siguiente golpe te encontró sin nada. Espera un instante después del aviso: el golpe tarda, te da tiempo.";
+  } else if (uso && g.th - uso.t < PARRY_CD && uso.t < g.tc) {
+    porque = `Lo gastaste ${((g.tc - uso.t)).toFixed(1)} s antes del aviso.`;
+    consejo = "El parry estaba en enfriamiento cuando llegó el golpe. Si lo presionas por si acaso, después no lo tienes. Presiónalo solo cuando oigas la carga.";
+  } else if (uso && uso.t >= g.tc && uso.t + PARRY_ACTIVO < g.th) {
+    porque = "Te adelantaste.";
+    consejo = "Tu parry se acabó antes de que llegara el golpe. Dura 0,75 s: aguanta un poco más después del aviso.";
+  } else if (tarde) {
+    porque = `Llegaste tarde por ${Math.round((tarde - g.th) * 1000)} ms.`;
+    consejo = "Lo oíste, pero el golpe ya había entrado. Apenas suene la carga, presiona: tienes unos " + Math.round(g.T * 1000) + " ms.";
+  } else {
+    porque = "No lo oíste.";
+    consejo = "Se perdió entre la bulla. Dale a «Escuchar el golpe cargado» en el menú para tenerlo en el oído, o empieza en Tranqui.";
+  }
+  $("#porque").textContent = porque;
+  $("#consejo").textContent = consejo;
+  $("#sRacha").textContent = J.racha;
+  $("#sRecord").textContent = records[aj.modo] || 0;
+  const rs = J.reacciones;
+  $("#sReac").textContent = rs.length ? Math.round(rs.reduce((a, b) => a + b, 0) / rs.length) + " ms" : "—";
+  pintarRecords();
+  mostrar("fin");
+}
+
+function dibujarLinea(g, p) {
+  const L = $("#linea"); L.style.display = "block"; $("#leyenda").style.display = "block";
+  L.querySelectorAll(".ventana,.pto").forEach((e) => e.remove());
+  const esc = 1.2, pos = (t) => ((t - g.tc + 0.1) / esc) * 100 + "%";
+  const v = document.createElement("div"); v.className = "ventana"; v.style.left = pos(p); v.style.width = (PARRY_ACTIVO / esc) * 100 + "%"; L.appendChild(v);
+  for (const [c, t] of [["cue", g.tc], ["golpe", g.th], ["tu", p]]) { const e = document.createElement("div"); e.className = "pto " + c; e.style.left = pos(t); L.appendChild(e); }
+}
+
+function destello(color) {
+  const d = $("#destello"); d.style.transition = "none"; d.style.background = color; d.style.opacity = 1;
+  requestAnimationFrame(() => { d.style.transition = "opacity .5s"; d.style.opacity = 0; });
+}
+
+function sacudirAnillo() {
+  $("#anillo").animate([{ transform: "translateX(-50%)" }, { transform: "translateX(calc(-50% - 6px))" }, { transform: "translateX(calc(-50% + 6px))" }, { transform: "translateX(-50%)" }], { duration: 180 });
+}
+
+function pintarAnillo() {
+  const t = ctx.currentTime - latencia(), d = t - J.parryIni, arco = $("#arco"), sub = $("#anilloSub");
+  if (d < PARRY_ACTIVO) { arco.style.stroke = "#6cc3b3"; arco.style.strokeDashoffset = 0; arco.style.filter = "drop-shadow(0 0 6px #6cc3b3)"; sub.textContent = "parry activo"; }
+  else if (d < PARRY_CD) { arco.style.stroke = "#5a5246"; arco.style.filter = ""; arco.style.strokeDashoffset = 276.5 * (1 - d / PARRY_CD); sub.textContent = (PARRY_CD - d).toFixed(1) + " s"; }
+  else { arco.style.stroke = "#d9a441"; arco.style.filter = ""; arco.style.strokeDashoffset = 0; sub.textContent = "listo"; }
+}
+
+function bucle() {
+  if (J && J.vivo) { programarCaos(); programarGolpes(); resolver(); pintarAnillo(); }
+  requestAnimationFrame(bucle);
+}
+
+function salir() {
+  if (J) { J.vivo = false; busCaos.gain.cancelScheduledValues(ctx.currentTime); busCaos.gain.setValueAtTime(0, ctx.currentTime); busAviso.gain.setValueAtTime(0, ctx.currentTime); }
+  pintarRecords(); mostrar("inicio");
+}
+
+function mostrar(id) { document.querySelectorAll(".pantalla").forEach((p) => p.classList.toggle("activa", p.id === id)); pantalla = id; }
+let pantalla = "carga";
+
+function pintarRecords() {
+  document.querySelectorAll(".modo").forEach((b) => {
+    b.classList.toggle("sel", b.dataset.modo === aj.modo);
+    const r = records[b.dataset.modo];
+    b.querySelector(".record").textContent = r ? "Récord: " + r : "";
+  });
+}
+
+function pintarTecla() { document.querySelectorAll("[data-tecla]").forEach((e) => (e.textContent = aj.teclaTxt)); }
+
+function nombreTecla(e) {
+  if (e.type === "mousedown") return ["Clic izq.", "Clic medio", "Clic der.", "Mouse 4", "Mouse 5"][e.button] || "Mouse " + (e.button + 1);
+  if (e.key && e.key.length === 1) return e.key.toUpperCase();
+  return { Space: "Espacio", ShiftLeft: "Shift", ShiftRight: "Shift der.", ControlLeft: "Ctrl", AltLeft: "Alt", CapsLock: "Bloq Mayús", Tab: "Tab" }[e.code] || e.code;
+}
+
+let rebindando = false;
+function capturar(e) {
+  if (!rebindando) return false;
+  if (e.type === "keydown" && e.code === "Escape") { rebindando = false; $("#rebind").classList.remove("esperando"); pintarTecla(); return true; }
+  e.preventDefault();
+  aj.tecla = e.type === "mousedown" ? "Mouse" + e.button : e.code;
+  aj.teclaTxt = nombreTecla(e);
+  rebindando = false; $("#rebind").classList.remove("esperando"); guardar(); pintarTecla();
+  return true;
+}
+
+function esParry(e) { return e.type === "mousedown" ? aj.tecla === "Mouse" + e.button : aj.tecla === e.code; }
+
+window.addEventListener("keydown", (e) => {
+  if (capturar(e)) return;
+  if (e.repeat) return;
+  if (pantalla === "juego") {
+    if (e.code === "Escape") return salir();
+    if (esParry(e)) { e.preventDefault(); presionar(); }
+  } else if (pantalla === "fin") {
+    if (e.code === "Space" || e.code === "Enter") { e.preventDefault(); nuevoJuego(); }
+    if (e.code === "Escape") salir();
+  } else if (pantalla === "inicio" && (e.code === "Enter")) { arrancar(); }
+});
+window.addEventListener("mousedown", (e) => {
+  if (rebindando && e.target.id !== "rebind") { capturar(e); return; }
+  if (pantalla === "juego" && esParry(e) && !e.target.closest("button")) { e.preventDefault(); presionar(); }
+});
+window.addEventListener("contextmenu", (e) => { if (pantalla === "juego" || rebindando) e.preventDefault(); });
+window.addEventListener("blur", () => { if (pantalla === "juego") salir(); });
+
+function arrancar() { if (ctx.state === "suspended") ctx.resume(); nuevoJuego(); }
+
+function demo(conParry) {
+  if (ctx.state === "suspended") ctx.resume();
+  busAviso.gain.value = 1; busCaos.gain.value = 0;
+  const t = ctx.currentTime + 0.1, T = aj.carga;
+  sonar("aviso", { t, ang: 0.5, dist: 0.6, bus: busAviso });
+  sonar("swing", { t: t + T - 0.22, ang: 0.5, dist: 0.6, gan: 0.9, bus: busAviso });
+  if (conParry) {
+    sonar("parryCast", { t: t + T * 0.45, ang: 0, dist: 0.2, gan: 0.55, bus: busAviso });
+    sonar("parryExito", { t: t + T, ang: 0.5, dist: 0.4, gan: 0.9, bus: busAviso });
+  } else {
+    sonar("impacto", { t: t + T, ang: 0.5, dist: 0.3, gan: 1.1, bus: busAviso });
+    sonar("dolor", { t: t + T, ang: 0, dist: 0.2, gan: 0.9, bus: busAviso });
+  }
+}
+
+function enlazarAjustes() {
+  const r = (id, out, fmt, key) => {
+    const el = $("#" + id); el.value = aj[key];
+    const pinta = () => ($("#" + out).textContent = fmt(+el.value));
+    pinta();
+    el.addEventListener("input", () => { aj[key] = +el.value; pinta(); guardar(); if (key === "vol" && master) master.gain.value = aj.vol; });
+  };
+  r("carga", "vCarga", (v) => Math.round(v * 1000) + " ms" + (Math.abs(v - 0.6) < 0.005 ? " (normal)" : ""), "carga");
+  r("vol", "vVol", (v) => Math.round(v * 100) + "%", "vol");
+  r("caos", "vCaos", (v) => Math.round(v * 100) + "%", "caos");
+  for (const k of ["ayuda", "fintas"]) { const el = $("#" + k); el.checked = aj[k]; el.addEventListener("change", () => { aj[k] = el.checked; guardar(); }); }
+  $("#rebind").addEventListener("click", (e) => { e.stopPropagation(); rebindando = true; $("#rebind").classList.add("esperando"); $("#rebind").textContent = "…"; });
+  document.querySelectorAll(".modo").forEach((b) => b.addEventListener("click", () => { aj.modo = b.dataset.modo; guardar(); pintarRecords(); }));
+  document.querySelectorAll(".modo").forEach((b) => b.addEventListener("dblclick", arrancar));
+  $("#jugar").addEventListener("click", arrancar);
+  $("#otra").addEventListener("click", nuevoJuego);
+  $("#menu").addEventListener("click", salir);
+  $("#salir").addEventListener("click", salir);
+  $("#oirAviso").addEventListener("click", () => demo(false));
+  $("#oirParry").addEventListener("click", () => demo(true));
+}
+
+(async () => {
+  if (!window.SONIDOS) { $("#cargando").textContent = "No encuentro los sonidos. Si lo abriste desde dentro del .zip, primero descomprímelo (clic derecho > Extraer todo) y abre Parry.html desde la carpeta."; return; }
+  await iniciarAudio();
+  enlazarAjustes(); pintarTecla(); pintarRecords();
+  mostrar("inicio");
+  bucle();
+})();
+</script>
+</body>
+</html>
